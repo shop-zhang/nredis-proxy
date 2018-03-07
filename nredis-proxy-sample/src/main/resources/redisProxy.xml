@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:redisProxy="http://www.nredisproxy.com/nredisProxy"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+    xsi:schemaLocation="http://www.springframework.org/schema/beans 
+        http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.nredisproxy.com/nredisProxy
+        http://www.nredisproxy.com/nredisProxy/NRedis-Proxy.xsd" >
+        
+    <!--redis 主从配置  -->
+    <redisProxy:redisProxyNode id="redisnode"  redisProxyHost="127.0.0.1"  algorithm-ref="loadMasterBalance" address="127.0.0.1:2181" redisProxyPort="6379" >
+    <!--主配置  -->      
+      <redisProxy:redisProxyMaster id="redismasters" host="127.0.0.1" port="6380" connectionTimeout="5000" maxActiveConnection="100" maxIdleConnection="80" minConnection="10" algorithm-ref="loadSlaveBalance" maxWaitMillisOnBorrow="500" initialConnection="5" timeBetweenEvictionRunsMillis="60000"  minEvictableIdleTimeMillis="300000"  minIdleEntries="1" testOnBorrow="true" testOnReturn="true" testWhileIdle="true">
+      	  <!--从配置  -->     
+      	  <redisProxy:redisProxySlave id="redismasters" host="127.0.0.1" port="6381" connectionTimeout="5000" maxActiveConnection="100" maxIdleConnection="80" minConnection="10"  maxWaitMillisOnBorrow="500" initialConnection="5" timeBetweenEvictionRunsMillis="60000"  minEvictableIdleTimeMillis="300000"  minIdleEntries="1" testOnBorrow="true" testOnReturn="true" testWhileIdle="true" weight="1"></redisProxy:redisProxySlave>
+      </redisProxy:redisProxyMaster> 
+    </redisProxy:redisProxyNode>
+    
+    <bean name="loadMasterBalance" class="com.opensource.netty.redis.proxy.core.cluster.impl.ConsistentHashLoadBalance"></bean>
+ 	<bean name="loadSlaveBalance" class="com.opensource.netty.redis.proxy.core.cluster.impl.RoundRobinLoadBalance"></bean>
+ 	
+ </beans>
