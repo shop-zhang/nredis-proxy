@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package com.opensource.netty.redis.proxy.core.protocol;
 
@@ -11,14 +11,13 @@ import io.netty.handler.codec.MessageToByteEncoder;
 
 /**
  * @author liubing
- *
  */
 public class RedisReplyEncoder extends MessageToByteEncoder<IRedisReply> {
 
-	@Override
-	protected void encode(ChannelHandlerContext ctx, IRedisReply msg,
-			ByteBuf out) throws Exception {
-    	msg.encode(out);
-	}
+    @Override
+    protected void encode(ChannelHandlerContext ctx, IRedisReply msg,
+                          ByteBuf out) throws Exception {
+        msg.encode(out);
+    }
 
 }

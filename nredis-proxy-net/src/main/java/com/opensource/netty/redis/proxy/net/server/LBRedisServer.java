@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package com.opensource.netty.redis.proxy.net.server;
 
@@ -26,116 +26,117 @@ import com.opensource.netty.redis.proxy.pool.commons.LBRedisProxyPoolConfig;
 
 /**
  * @author liubing
- *
  */
 public class LBRedisServer {
-	
-	private Logger logger = LoggerFactory.getLogger(LBRedisServer.class);
 
-	private LBRedisServerMasterCluster ffanRedisServerMasterCluster;
+    private Logger logger = LoggerFactory.getLogger(LBRedisServer.class);
 
-	// 线程组
-	private static EventLoopGroup bossGroup = new NioEventLoopGroup(Runtime
-			.getRuntime().availableProcessors());
-	private static EventLoopGroup workerGroup = new NioEventLoopGroup(Runtime
-			.getRuntime().availableProcessors());
+    private LBRedisServerMasterCluster ffanRedisServerMasterCluster;
 
-	/**
-	 * @param conf
-	 */
-	public LBRedisServer(LBRedisServerMasterCluster ffanRedisServerMasterCluster) {
-		super();
-		this.ffanRedisServerMasterCluster = ffanRedisServerMasterCluster;
-		init();
-	}
-	
-	 
-	/**
-	   * 销废
-	   */
-	 public void destroy(){
-		  for(String key:ffanRedisServerMasterCluster.getFfanRedisClientBeanMap().keySet()){
-			  ffanRedisServerMasterCluster.getFfanRedisClientBeanMap().get(key).close();
-		  }
-	  }
-	  /**
-	   * 初始化客户端
-	   */
-	  private void init(){
-		  if(ffanRedisServerMasterCluster!=null&&ffanRedisServerMasterCluster.getRedisServerClusterBeans()!=null&&ffanRedisServerMasterCluster.getRedisServerClusterBeans().size()>0){
-			  for(LBRedisServerClusterBean ffanRedisServerClusterBean:ffanRedisServerMasterCluster.getRedisServerClusterBeans()){
-				  LBRedisServerBean lbRedisServerBean=ffanRedisServerClusterBean.getFfanMasterRedisServerBean();
-				  if(lbRedisServerBean!=null){//主
-					  LBRedisProxyPoolConfig lbRedisProxyPoolConfig=convertLBRedisProxyPoolConfig(lbRedisServerBean);
-					  LBRedisClient ffanRedisClient=new LBRedisClient(lbRedisProxyPoolConfig);
-					  ffanRedisServerMasterCluster.getFfanRedisClientBeanMap().put(lbRedisServerBean.getKey(), ffanRedisClient);
-				  }
-				  List<LBRedisServerBean> ffanRedisServerClusterBeans=ffanRedisServerClusterBean.getFfanRedisServerClusterBeans();
-				  if(ffanRedisServerClusterBeans!=null&&ffanRedisServerClusterBeans.size()>0){
-					  for(LBRedisServerBean ffanRedisServerSlave:ffanRedisServerClusterBeans){
-						  
-						  LBRedisProxyPoolConfig lbRedisProxyPoolConfig=convertLBRedisProxyPoolConfig(lbRedisServerBean);
-						  LBRedisClient ffanRedisClient=new LBRedisClient(lbRedisProxyPoolConfig);
-						  ffanRedisServerMasterCluster.getFfanRedisClientBeanMap().put(ffanRedisServerSlave.getKey(), ffanRedisClient);
-					  }
-				  }
-				  
-			  }
-		  }
-	  }
-	  
-	  
-	  /**
-	   * 转换
-	   * @param lbRedisServerBean
-	   * @return
-	   */
-	  private LBRedisProxyPoolConfig convertLBRedisProxyPoolConfig(LBRedisServerBean lbRedisServerBean){
-		  LBRedisProxyPoolConfig lbRedisProxyPoolConfig=new LBRedisProxyPoolConfig();
-		  lbRedisProxyPoolConfig.setConnectionTimeout(lbRedisServerBean.getConnectionTimeout());
-		  lbRedisProxyPoolConfig.setHost(lbRedisServerBean.getHost());
-		  lbRedisProxyPoolConfig.setInitialEntries(lbRedisServerBean.getInitialConnection());
-		  lbRedisProxyPoolConfig.setMaxActiveEntries(lbRedisServerBean.getMaxActiveConnection());
-		  lbRedisProxyPoolConfig.setMaxWaitMillisOnBorrow(lbRedisServerBean.getMaxWaitMillisOnBorrow());
-		  lbRedisProxyPoolConfig.setMinActiveEntries(lbRedisServerBean.getMinConnection());
-		  lbRedisProxyPoolConfig.setMinEvictableIdleTimeMillis(lbRedisServerBean.getMinEvictableIdleTimeMillis());
-		  lbRedisProxyPoolConfig.setMinIdleEntries(lbRedisServerBean.getMinIdleEntries());
-		  lbRedisProxyPoolConfig.setPort(lbRedisServerBean.getPort());
-		  lbRedisProxyPoolConfig.setTestOnBorrow(lbRedisServerBean.isTestOnBorrow());
-		  lbRedisProxyPoolConfig.setTestOnReturn(lbRedisServerBean.isTestOnReturn());
-		  lbRedisProxyPoolConfig.setTestWhileIdle(lbRedisServerBean.isTestWhileIdle());
-		  lbRedisProxyPoolConfig.setTimeBetweenEvictionRunsMillis(lbRedisServerBean.getTimeBetweenEvictionRunsMillis());
-		  return lbRedisProxyPoolConfig;
-	  }
-	  
-	/**
-	 * 启动系统，开启接收连接，处理业务
-	 */
-	public void start() {
+    // 线程组
+    private static EventLoopGroup bossGroup = new NioEventLoopGroup(Runtime
+            .getRuntime().availableProcessors());
+    private static EventLoopGroup workerGroup = new NioEventLoopGroup(Runtime
+            .getRuntime().availableProcessors());
 
-		ServerBootstrap bootstrap = new ServerBootstrap();
-		bootstrap.group(bossGroup, workerGroup)
-				.channel(NioServerSocketChannel.class).childOption(ChannelOption.SO_REUSEADDR, true).childOption(ChannelOption.TCP_NODELAY, Boolean.TRUE)
-				.childOption(ChannelOption.SO_KEEPALIVE, Boolean.TRUE)
-				
-				.childHandler(new ChannelInitializer<SocketChannel>() {
-					@Override
-					protected void initChannel(SocketChannel ch)
-							throws Exception {
-						ch.pipeline().addLast("RedisRequestDecoder",
-								new RedisRequestDecoder());
-						ch.pipeline().addLast("RedisReplyEncoder",
-								new RedisReplyEncoder());
-						ch.pipeline().addLast(
-								"FfanRedisServerHandler",
-								new LBRedisServerHandler(
-										ffanRedisServerMasterCluster.getFfanRedisClientBeanMap(),ffanRedisServerMasterCluster));
-					}
-				});
-		ChannelFuture channelFuture = bootstrap.bind(
-				ffanRedisServerMasterCluster.getRedisProxyHost(),
-				ffanRedisServerMasterCluster.getRedisProxyPort());
-		channelFuture.syncUninterruptibly();
-		logger.info("RedisProxy_Server 已经启动");
-	}
+    /**
+     * @param conf
+     */
+    public LBRedisServer(LBRedisServerMasterCluster ffanRedisServerMasterCluster) {
+        super();
+        this.ffanRedisServerMasterCluster = ffanRedisServerMasterCluster;
+        init();
+    }
+
+
+    /**
+     * 销废
+     */
+    public void destroy() {
+        for (String key : ffanRedisServerMasterCluster.getFfanRedisClientBeanMap().keySet()) {
+            ffanRedisServerMasterCluster.getFfanRedisClientBeanMap().get(key).close();
+        }
+    }
+
+    /**
+     * 初始化客户端
+     */
+    private void init() {
+        if (ffanRedisServerMasterCluster != null && ffanRedisServerMasterCluster.getRedisServerClusterBeans() != null && ffanRedisServerMasterCluster.getRedisServerClusterBeans().size() > 0) {
+            for (LBRedisServerClusterBean ffanRedisServerClusterBean : ffanRedisServerMasterCluster.getRedisServerClusterBeans()) {
+                LBRedisServerBean lbRedisServerBean = ffanRedisServerClusterBean.getFfanMasterRedisServerBean();
+                if (lbRedisServerBean != null) {//主
+                    LBRedisProxyPoolConfig lbRedisProxyPoolConfig = convertLBRedisProxyPoolConfig(lbRedisServerBean);
+                    LBRedisClient ffanRedisClient = new LBRedisClient(lbRedisProxyPoolConfig);
+                    ffanRedisServerMasterCluster.getFfanRedisClientBeanMap().put(lbRedisServerBean.getKey(), ffanRedisClient);
+                }
+                List<LBRedisServerBean> ffanRedisServerClusterBeans = ffanRedisServerClusterBean.getFfanRedisServerClusterBeans();
+                if (ffanRedisServerClusterBeans != null && ffanRedisServerClusterBeans.size() > 0) {
+                    for (LBRedisServerBean ffanRedisServerSlave : ffanRedisServerClusterBeans) {
+
+                        LBRedisProxyPoolConfig lbRedisProxyPoolConfig = convertLBRedisProxyPoolConfig(lbRedisServerBean);
+                        LBRedisClient ffanRedisClient = new LBRedisClient(lbRedisProxyPoolConfig);
+                        ffanRedisServerMasterCluster.getFfanRedisClientBeanMap().put(ffanRedisServerSlave.getKey(), ffanRedisClient);
+                    }
+                }
+
+            }
+        }
+    }
+
+
+    /**
+     * 转换
+     *
+     * @param lbRedisServerBean
+     * @return
+     */
+    private LBRedisProxyPoolConfig convertLBRedisProxyPoolConfig(LBRedisServerBean lbRedisServerBean) {
+        LBRedisProxyPoolConfig lbRedisProxyPoolConfig = new LBRedisProxyPoolConfig();
+        lbRedisProxyPoolConfig.setConnectionTimeout(lbRedisServerBean.getConnectionTimeout());
+        lbRedisProxyPoolConfig.setHost(lbRedisServerBean.getHost());
+        lbRedisProxyPoolConfig.setInitialEntries(lbRedisServerBean.getInitialConnection());
+        lbRedisProxyPoolConfig.setMaxActiveEntries(lbRedisServerBean.getMaxActiveConnection());
+        lbRedisProxyPoolConfig.setMaxWaitMillisOnBorrow(lbRedisServerBean.getMaxWaitMillisOnBorrow());
+        lbRedisProxyPoolConfig.setMinActiveEntries(lbRedisServerBean.getMinConnection());
+        lbRedisProxyPoolConfig.setMinEvictableIdleTimeMillis(lbRedisServerBean.getMinEvictableIdleTimeMillis());
+        lbRedisProxyPoolConfig.setMinIdleEntries(lbRedisServerBean.getMinIdleEntries());
+        lbRedisProxyPoolConfig.setPort(lbRedisServerBean.getPort());
+        lbRedisProxyPoolConfig.setTestOnBorrow(lbRedisServerBean.isTestOnBorrow());
+        lbRedisProxyPoolConfig.setTestOnReturn(lbRedisServerBean.isTestOnReturn());
+        lbRedisProxyPoolConfig.setTestWhileIdle(lbRedisServerBean.isTestWhileIdle());
+        lbRedisProxyPoolConfig.setTimeBetweenEvictionRunsMillis(lbRedisServerBean.getTimeBetweenEvictionRunsMillis());
+        return lbRedisProxyPoolConfig;
+    }
+
+    /**
+     * 启动系统，开启接收连接，处理业务
+     */
+    public void start() {
+
+        ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.group(bossGroup, workerGroup)
+                .channel(NioServerSocketChannel.class).childOption(ChannelOption.SO_REUSEADDR, true).childOption(ChannelOption.TCP_NODELAY, Boolean.TRUE)
+                .childOption(ChannelOption.SO_KEEPALIVE, Boolean.TRUE)
+
+                .childHandler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch)
+                            throws Exception {
+                        ch.pipeline().addLast("RedisRequestDecoder",
+                                new RedisRequestDecoder());
+                        ch.pipeline().addLast("RedisReplyEncoder",
+                                new RedisReplyEncoder());
+                        ch.pipeline().addLast(
+                                "FfanRedisServerHandler",
+                                new LBRedisServerHandler(
+                                        ffanRedisServerMasterCluster.getFfanRedisClientBeanMap(), ffanRedisServerMasterCluster));
+                    }
+                });
+        ChannelFuture channelFuture = bootstrap.bind(
+                ffanRedisServerMasterCluster.getRedisProxyHost(),
+                ffanRedisServerMasterCluster.getRedisProxyPort());
+        channelFuture.syncUninterruptibly();
+        logger.info("RedisProxy_Server 已经启动");
+    }
 }
